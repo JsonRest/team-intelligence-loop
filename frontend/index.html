@@ -250,7 +250,7 @@ textarea{resize:none;line-height:1.6}
 <div class="toast" id="toast"></div>
 
 <script>
-const today = new Date().toISOString().split('T')[0];
+const _d = new Date(); const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
 const dateLabel = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 const REF = new Date('2025-01-06');
 const diff = Math.floor((new Date()-REF)/86400000);
