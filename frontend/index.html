@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Intelligence Loop</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sidebar:#0C1220;--bg:#F0F4F8;--card:#fff;--border:#E2E8F0;
+  --text:#0F172A;--muted:#64748B;--hint:#94A3B8;
+  --primary:#2563EB;--primary-bg:#EFF6FF;--primary-border:#BFDBFE;
+  --teal:#0F766E;--teal-bg:#CCFBF1;--teal-border:#99F6E4;
+  --amber:#D97706;--amber-bg:#FEF3C7;--amber-border:#FDE68A;
+  --red:#DC2626;--red-bg:#FEE2E2;--red-border:#FECACA;
+  --green:#16A34A;--green-bg:#DCFCE7;--green-border:#BBF7D0;
+}
+body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
+
+/* ── Sidebar ── */
+.sb{width:224px;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.sb-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2563EB,#0EA5E9);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.sb-name{font-size:13px;font-weight:600;color:#fff;line-height:1.2}
+.sb-sub{font-size:10px;color:rgba(255,255,255,.3)}
+.sb-nav{padding:10px 8px}
+.sb-btn{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;font-size:13px;color:rgba(255,255,255,.45);cursor:pointer;margin-bottom:2px;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.sb-btn:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.7)}
+.sb-btn.active{background:rgba(37,99,235,.2);color:#93C5FD}
+.sb-dot{width:16px;height:16px;border-radius:4px;background:currentColor;opacity:.5;flex-shrink:0}
+.sb-section{padding:14px 18px 6px;font-size:10px;font-weight:600;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.07em}
+.sb-member{display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:12px;color:rgba(255,255,255,.4)}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sdot-g{background:#22C55E}.sdot-a{background:#F59E0B}.sdot-x{background:#475569}
+
+/* ── Layout ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tb-title{font-size:14px;font-weight:600}
+.tb-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.content{flex:1;display:flex;overflow:hidden}
+.body{flex:1;overflow-y:auto;padding:18px 20px}
+.rpanel{width:264px;background:var(--card);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0}
+
+/* ── Alert ── */
+.alert{background:var(--amber-bg);border-bottom:1px solid var(--amber-border);padding:9px 20px;display:flex;align-items:center;gap:8px;font-size:12px;color:#92400E;flex-shrink:0}
+.adot{width:7px;height:7px;border-radius:50%;background:var(--amber)}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--green-bg);color:var(--green);border-radius:10px;padding:2px 8px;font-size:11px;font-weight:500;margin-left:8px}
+
+/* ── Buttons ── */
+.btn{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .15s;border:none}
+.btn-pri{background:var(--primary);color:#fff}.btn-pri:hover{opacity:.9}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{background:var(--bg)}
+
+/* ── Stat cards ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px 14px}
+.stat-lbl{font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.stat-val{font-size:22px;font-weight:600}
+.stat-s{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px}
+.card-h{font-size:13px;font-weight:600;margin-bottom:12px}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.mhead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.av0{background:#DBEAFE;color:#1D4ED8}.av1{background:#EDE9FE;color:#6D28D9}
+.av2{background:#CCFBF1;color:#0F766E}.av3{background:#FFEDD5;color:#C2410C}.av4{background:#FCE7F3;color:#9D174D}
+.mname{font-size:13px;font-weight:500}.mrole{font-size:11px;color:var(--hint)}
+.mline{font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.5}
+.mbadge{display:inline-block;font-size:10px;font-weight:500;padding:1px 6px;border-radius:4px;background:var(--red-bg);color:var(--red);margin-right:3px}
+
+/* ── Right panel ── */
+.ps{padding:13px 13px 10px;border-bottom:1px solid var(--bg)}
+.pt{font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px}
+.bcard{background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px;margin-bottom:8px}
+.bt{font-size:12px;font-weight:500;color:#9A3412;margin-bottom:3px}
+.bb{font-size:11px;color:#78350F;line-height:1.5}
+.ecard{background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:10px;margin-bottom:8px}
+.et{font-size:12px;font-weight:500;color:#14532D;margin-bottom:3px}
+.es{font-size:11px;color:#166534;font-family:'JetBrains Mono',monospace}
+.emailcard{background:var(--primary-bg);border:1px solid var(--primary-border);border-radius:8px;padding:10px}
+.emailt{font-size:12px;font-weight:500;color:#1E40AF;margin-bottom:3px}
+.emailb{font-size:11px;color:#1D4ED8;line-height:1.5}
+.empty{font-size:12px;color:var(--hint);font-style:italic}
+
+/* ── Submit view ── */
+.sv{flex:1;background:var(--bg);overflow-y:auto;padding:36px 24px;display:flex;justify-content:center;align-items:flex-start}
+.sform{background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:580px;padding:30px}
+.sh{margin-bottom:22px}
+.sh h2{font-size:20px;font-weight:600;letter-spacing:-.3px}
+.sh p{font-size:13px;color:var(--muted);margin-top:4px}
+.fdate{display:inline-flex;align-items:center;background:var(--primary-bg);color:var(--primary);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:500;margin-bottom:20px;font-family:'JetBrains Mono',monospace}
+.flabel{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:7px}
+.fldot{width:8px;height:8px;border-radius:50%}
+.fld-gray{background:var(--hint)}.fld-blue{background:var(--primary)}.fld-red{background:var(--red)}
+.fs{margin-bottom:16px}
+input[type=email],textarea{width:100%;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);font-family:inherit;transition:border-color .15s}
+input[type=email]:focus,textarea:focus{outline:none;border-color:var(--primary)}
+textarea{resize:none;line-height:1.6}
+.ffoot{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+.xprev{margin-top:22px;border-top:1px dashed var(--border);padding-top:16px}
+.xh{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px}
+.xtag{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;margin-right:5px}
+.xt-y{background:var(--green-bg);color:var(--green)}.xt-t{background:var(--primary-bg);color:var(--primary)}.xt-b{background:var(--red-bg);color:var(--red)}
+.xrow{display:flex;gap:5px;font-size:12px;color:var(--muted);margin-bottom:7px;line-height:1.5}
+
+/* ── Decisions ── */
+.dv{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.dh{background:var(--card);border-bottom:1px solid var(--border);padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tabs{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;display:flex;flex-shrink:0}
+.tab{padding:10px 13px;font-size:12px;font-weight:500;color:var(--hint);border-bottom:2px solid transparent;cursor:pointer}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.dlist{padding:16px 20px;overflow-y:auto;flex:1}
+.dcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:15px;margin-bottom:12px}
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.dtitle{font-size:13px;font-weight:500;line-height:1.4;flex:1;margin-right:12px}
+.ds{font-size:10px;font-weight:500;padding:3px 8px;border-radius:10px;flex-shrink:0}
+.ds-p{background:var(--amber-bg);color:#92400E}.ds-a{background:var(--green-bg);color:#065F46}.ds-r{background:var(--primary-bg);color:#1E40AF}
+.dmeta{display:flex;gap:14px;font-size:11px;color:var(--hint);margin-bottom:8px}
+.dbody{font-size:12px;color:var(--muted);border-top:1px solid #F1F5F9;padding-top:9px}
+.drow{display:flex;gap:8px;margin-bottom:4px}
+.dk{font-size:11px;font-weight:600;color:var(--hint);min-width:110px}
+.dval{font-size:11px;color:var(--muted)}
+
+/* ── Spinner / Toast ── */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:22px;right:22px;background:#0F172A;color:#fff;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}.toast.err{background:var(--red)}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-mark">TIL</div>
+    <div><div class="sb-name">Team Intelligence</div><div class="sb-sub" id="sb-sprint">Loading...</div></div>
+  </div>
+  <nav class="sb-nav">
+    <button class="sb-btn active" data-view="dash" onclick="nav('dash',this)">
+      <div class="sb-dot"></div>Digest
+    </button>
+    <button class="sb-btn" data-view="sub" onclick="nav('sub',this)">
+      <div class="sb-dot"></div>Submit Standup
+    </button>
+    <button class="sb-btn" data-view="dec" onclick="nav('dec',this)">
+      <div class="sb-dot"></div>Decisions
+    </button>
+  </nav>
+  <div class="sb-section">Team</div>
+  <div id="sb-members"></div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- ── DASHBOARD ── -->
+  <div id="v-dash">
+    <div class="topbar">
+      <div><div class="tb-title" id="tb-title">Loading...</div><div class="tb-sub" id="tb-sub"></div></div>
+      <button class="btn btn-pri" onclick="nav('sub',null)">Submit standup</button>
+    </div>
+    <div class="alert hidden" id="alert-bar">
+      <div class="adot"></div><span id="alert-txt"></span>
+    </div>
+    <div class="content">
+      <div class="body">
+        <div class="stats">
+          <div class="stat"><div class="stat-lbl">Submissions</div><div class="stat-val" id="s-subs">—</div><div class="stat-s" id="s-subs2">—</div></div>
+          <div class="stat"><div class="stat-lbl">Active Blockers</div><div class="stat-val" id="s-blk" style="color:var(--red)">—</div><div class="stat-s">Cross-person deps</div></div>
+          <div class="stat"><div class="stat-lbl">1:1s Scheduled</div><div class="stat-val" id="s-ev" style="color:var(--green)">—</div><div class="stat-s">Via Calendar MCP</div></div>
+          <div class="stat"><div class="stat-lbl">Decisions Logged</div><div class="stat-val" id="s-dec" style="color:var(--primary)">—</div><div class="stat-s">In journal</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h">Today's Team Status</div>
+          <div class="mgrid" id="mgrid"><div style="color:var(--hint);font-size:13px">Loading team data...</div></div>
+        </div>
+      </div>
+      <aside class="rpanel">
+        <div class="ps"><div class="pt">Active Blockers</div><div id="rp-blockers"><p class="empty">No blockers today</p></div></div>
+        <div class="ps"><div class="pt">Calendar Events</div><div id="rp-events"><p class="empty">No events created yet</p></div></div>
+        <div class="ps"><div class="pt">Email Delivery</div><div id="rp-email"><p class="empty">No digest sent yet</p></div></div>
+        <div class="ps"><div class="pt">Recent Decisions</div><div id="rp-dec"><p class="empty">None logged</p></div></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ── SUBMIT ── -->
+  <div id="v-sub" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+    <div class="topbar">
+      <div><div class="tb-title">Submit Standup</div><div class="tb-sub" id="sub-date"></div></div>
+      <button class="btn btn-ghost" onclick="nav('dash',null)">← Back</button>
+    </div>
+    <div class="sv">
+      <div class="sform">
+        <div class="sh"><h2>Submit your standup</h2><p>What did you work on, what are you doing today, and are you blocked?</p></div>
+        <div class="fdate" id="fdate"></div>
+        <div class="fs">
+          <div class="flabel"><div class="fldot fld-gray"></div>Member email</div>
+          <input type="email" id="f-email" placeholder="your@email.com">
+        </div>
+        <div class="fs">
+          <div class="flabel"><div class="fldot fld-gray"></div>Yesterday</div>
+          <textarea id="f-yest" rows="2" placeholder="What did you complete yesterday?"></textarea>
+        </div>
+        <div class="fs">
+          <div class="flabel"><div class="fldot fld-blue"></div>Today</div>
+          <textarea id="f-today" rows="2" placeholder="What are you working on today?"></textarea>
+        </div>
+        <div class="fs">
+          <div class="flabel"><div class="fldot fld-red"></div>Blockers</div>
+          <textarea id="f-blk" rows="2" placeholder="Anything blocking you? (leave blank if none)"></textarea>
+        </div>
+        <div class="ffoot">
+          <button class="btn btn-ghost" onclick="nav('dash',null)">Cancel</button>
+          <button class="btn btn-pri" id="sub-btn" onclick="doSubmit()">Submit standup →</button>
+        </div>
+        <div class="xprev hidden" id="xprev">
+          <div class="xh">Pipeline complete — extracted fields</div>
+          <div id="xcontent"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DECISIONS ── -->
+  <div id="v-dec" class="hidden dv">
+    <div class="dh">
+      <div><div class="tb-title">Decision Journal</div><div class="tb-sub" id="dec-count"></div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="filterDec('all',this)">All</div>
+      <div class="tab" onclick="filterDec('pending',this)">Pending Review</div>
+      <div class="tab" onclick="filterDec('reviewed',this)">Reviewed</div>
+    </div>
+    <div class="dlist" id="dlist">Loading decisions...</div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const today = new Date().toISOString().split('T')[0];
+const dateLabel = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+const REF = new Date('2025-01-06');
+const diff = Math.floor((new Date()-REF)/86400000);
+const sprint = Math.floor(diff/14)+1;
+const day    = (diff%14)+1;
+const AV = ['av0','av1','av2','av3','av4'];
+const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+let S = {team:[],standups:[],items:[],blockers:[],decisions:[],decFilter:'all'};
+
+// ── Boot ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('sb-sprint').textContent = `Sprint ${sprint} · Day ${day}`;
+  document.getElementById('tb-title').textContent  = `Sprint ${sprint} — Day ${day} Digest`;
+  document.getElementById('fdate').textContent     = dateLabel;
+  document.getElementById('sub-date').textContent  = dateLabel;
+  loadAll();
+});
+
+async function loadAll(){
+  try{
+    const [t,s,b,d] = await Promise.all([
+      api('/api/team'),
+      api(`/api/standups/${today}`),
+      api(`/api/blockers/${today}`),
+      api('/api/decisions'),
+    ]);
+    S.team      = t.members      || [];
+    S.standups  = s.standups     || [];
+    S.items     = s.items        || [];
+    S.blockers  = b.blockers     || [];
+    S.decisions = d.decisions    || [];
+    render();
+  }catch(e){ toast('Failed to load data: '+e.message,1); }
+}
+
+function render(){
+  const tc = S.team.length, sc = S.standups.length;
+  const bc = S.blockers.length;
+  const sched = S.blockers.filter(b=>b.status==='scheduled').length;
+
+  document.getElementById('tb-sub').textContent  = `${dateLabel} · ${sc}/${tc} submissions`;
+  document.getElementById('s-subs').textContent  = `${sc}/${tc}`;
+  const pending = S.team.filter(m=>!S.standups.find(s=>s.email===m.email));
+  document.getElementById('s-subs2').textContent = pending.length
+    ? pending.map(m=>m.name.split(' ')[0]).join(', ')+' pending'
+    : 'All submitted';
+  document.getElementById('s-blk').textContent   = bc;
+  document.getElementById('s-ev').textContent    = sched;
+  document.getElementById('s-dec').textContent   = S.decisions.length;
+
+  if(bc>0){
+    const bar = document.getElementById('alert-bar');
+    bar.classList.remove('hidden');
+    document.getElementById('alert-txt').innerHTML =
+      `${bc} active blocker${bc>1?'s':''} detected · ${sched} 1:1${sched!==1?'s':''} scheduled`+
+      `<span class="chip">✓ Digest emailed to ${tc} members</span>`;
+  }
+
+  renderMembers(); renderSidebar(); renderRight();
+}
+
+function gi(email){ // get parsed items by email
+  return{
+    yesterday: S.items.find(i=>i.email===email&&i.category==='yesterday')?.content||'',
+    today:     S.items.find(i=>i.email===email&&i.category==='today')?.content||'',
+    blocker:   S.items.find(i=>i.email===email&&i.category==='blocker')?.content||'',
+  };
+}
+
+function renderMembers(){
+  const el = document.getElementById('mgrid');
+  if(!S.team.length){el.innerHTML='<p style="color:var(--hint);font-size:13px">No team members found</p>';return;}
+  el.innerHTML = S.team.map((m,i)=>{
+    const has = S.standups.find(s=>s.email===m.email);
+    const it  = gi(m.email);
+    const bl  = S.blockers.find(b=>b.owner_email===m.email);
+    return`<div class="mcard">
+      <div class="mhead">
+        <div class="av ${AV[i%5]}">${initials(m.name)}</div>
+        <div><div class="mname">${m.name}</div><div class="mrole">${m.email}</div></div>
+      </div>
+      ${has?`
+        ${it.yesterday?`<div class="mline">✓ ${it.yesterday}</div>`:''}
+        ${it.today    ?`<div class="mline">→ ${it.today}</div>`:''}
+        ${bl?`<div class="mline" style="color:var(--red);font-size:11px">⚠ <span class="mbadge">BLOCKED</span> ${bl.description}</div>`:''}
+        ${!it.today&&!it.yesterday?`<div class="mline" style="color:var(--hint)">Submitted</div>`:''}
+      `:`<div class="mline" style="color:var(--hint);font-style:italic">No standup yet</div>`}
+    </div>`;
+  }).join('');
+}
+
+function renderSidebar(){
+  document.getElementById('sb-members').innerHTML = S.team.map(m=>{
+    const sub = !!S.standups.find(s=>s.email===m.email);
+    const blk = !!S.blockers.find(b=>b.owner_email===m.email);
+    const dc  = blk?'sdot-a':sub?'sdot-g':'sdot-x';
+    return`<div class="sb-member"><div class="sdot ${dc}"></div>${m.name}${!sub?`<span style="font-size:10px;color:rgba(255,255,255,.2)"> — pending</span>`:''}</div>`;
+  }).join('');
+}
+
+function renderRight(){
+  // Blockers
+  const be = document.getElementById('rp-blockers');
+  be.innerHTML = S.blockers.length
+    ? S.blockers.map(b=>`<div class="bcard"><div class="bt">${b.owner_name} ← ${b.blocker_name}</div><div class="bb">${b.description}${b.status==='scheduled'?' · <em>1:1 scheduled</em>':''}</div></div>`).join('')
+    : '<p class="empty">✓ No blockers today</p>';
+
+  // Events
+  const ee = document.getElementById('rp-events');
+  const sched = S.blockers.filter(b=>b.status==='scheduled');
+  ee.innerHTML = sched.length
+    ? sched.map(b=>`<div class="ecard"><div class="et">${b.owner_name} × ${b.blocker_name} 1:1</div><div class="es">Scheduled · 15 min</div></div>`).join('')
+    : '<p class="empty">No events yet</p>';
+
+  // Email
+  const eme = document.getElementById('rp-email');
+  if(S.blockers.length>0||S.standups.length>0){
+    eme.innerHTML = `<div class="emailcard"><div class="emailt">Sprint ${sprint} Day ${day} Digest sent</div><div class="emailb">${S.team.length} members · ${dateLabel}</div></div>`;
+  } else {
+    eme.innerHTML = '<p class="empty">No digest sent yet</p>';
+  }
+
+  // Decisions mini
+  const de = document.getElementById('rp-dec');
+  if(!S.decisions.length){de.innerHTML='<p class="empty">None logged</p>';return;}
+  de.innerHTML = S.decisions.slice(0,2).map(d=>
+    `<div style="font-size:12px;color:var(--muted);margin-bottom:7px;line-height:1.5">${d.decision.slice(0,80)}${d.decision.length>80?'...':''}</div>`
+  ).join('')+(S.decisions.length>2?`<div style="font-size:11px;color:var(--primary);cursor:pointer" onclick="nav('dec',null)">View all ${S.decisions.length} →</div>`:'');
+}
+
+// ── Submit ────────────────────────────────────────────────────
+async function doSubmit(){
+  const email = document.getElementById('f-email').value.trim();
+  const yest  = document.getElementById('f-yest').value.trim();
+  const tod   = document.getElementById('f-today').value.trim();
+  const blk   = document.getElementById('f-blk').value.trim();
+  if(!email||!yest||!tod){toast('Fill in email, yesterday, and today',1);return;}
+  const btn = document.getElementById('sub-btn');
+  btn.innerHTML='<span class="spinner"></span>Processing...';
+  btn.disabled=true;
+  try{
+    await api('/api/standup',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({member_email:email,sprint_day:today,yesterday:yest,today:tod,blocker:blk})
+    });
+    document.getElementById('xprev').classList.remove('hidden');
+    document.getElementById('xcontent').innerHTML=
+      `<div class="xrow"><span class="xtag xt-y">Yesterday</span>${yest}</div>`+
+      `<div class="xrow"><span class="xtag xt-t">Today</span>${tod}</div>`+
+      (blk?`<div class="xrow"><span class="xtag xt-b">Blocker</span>${blk}</div>`:``) +
+      `<div style="margin-top:10px;font-size:12px;color:var(--green);font-weight:500">✓ Pipeline complete — digest emailed, 1:1s scheduled</div>`;
+    toast('Standup submitted!');
+    await loadAll();
+  }catch(e){toast('Submission failed: '+e.message,1);}
+  finally{btn.innerHTML='Submit standup →';btn.disabled=false;}
+}
+
+// ── Decisions ─────────────────────────────────────────────────
+function renderDec(){
+  const f = S.decFilter;
+  const list = f==='all'?S.decisions:f==='pending'
+    ?S.decisions.filter(d=>!d.actual_outcome)
+    :S.decisions.filter(d=>d.actual_outcome);
+  document.getElementById('dec-count').textContent = `${S.decisions.length} decisions logged`;
+  const el = document.getElementById('dlist');
+  if(!list.length){el.innerHTML='<p style="color:var(--hint);font-size:13px">No decisions in this category</p>';return;}
+  const fmtDate = v => v?new Date(v).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+  el.innerHTML = list.map(d=>{
+    const status = d.actual_outcome?'Reviewed':'Pending review';
+    const sc     = d.actual_outcome?'ds-a':'ds-p';
+    return`<div class="dcard">
+      <div class="dhead"><div class="dtitle">${d.decision}</div><div class="ds ${sc}">${status}</div></div>
+      <div class="dmeta"><span>${fmtDate(d.sprint_day)}</span><span>Review: ${fmtDate(d.review_date)}</span></div>
+      <div class="dbody">
+        ${d.rationale      ?`<div class="drow"><div class="dk">Rationale</div><div class="dval">${d.rationale}</div></div>`:''}
+        ${d.expected_outcome?`<div class="drow"><div class="dk">Expected outcome</div><div class="dval">${d.expected_outcome}</div></div>`:''}
+        ${d.actual_outcome  ?`<div class="drow"><div class="dk">Actual outcome</div><div class="dval">${d.actual_outcome}</div></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterDec(f,el){
+  S.decFilter=f;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  renderDec();
+}
+
+// ── Nav ───────────────────────────────────────────────────────
+function nav(view, btn){
+  ['dash','sub','dec'].forEach(v=>{
+    const el=document.getElementById('v-'+v);
+    el.classList.toggle('hidden', v!==view);
+    if(v!==view) el.style.display='';
+  });
+  document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
+  (btn||document.querySelector(`[data-view="${view}"]`))?.classList.add('active');
+  if(view==='dec') renderDec();
+  if(view==='sub') document.getElementById('xprev').classList.add('hidden');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+async function api(url,opts={}){
+  const r = await fetch(url,opts);
+  if(!r.ok){const t=await r.text();throw new Error(`${r.status}: ${t}`);}
+  return r.json();
+}
+function toast(msg,err=0){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast${err?' err':''} show`;
+  setTimeout(()=>{t.className=`toast${err?' err':''}`;},3500);
+}
+</script>
+</body>
+</html>
