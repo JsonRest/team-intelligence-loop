@@ -6,8 +6,6 @@ A multi-agent AI system that replaces the daily standup meeting with a 3-minute 
 **GCP Project:** `genaiacademy-491713`
 
 <img width="1721" height="895" alt="image" src="https://github.com/user-attachments/assets/d6321939-7efe-4202-9f0f-0f007843ff35" />
-<img width="205" height="317" alt="image" src="https://github.com/user-attachments/assets/f7639830-6879-422f-8aa0-f320b48f6d50" />
-<img width="230" height="317" alt="image" src="https://github.com/user-attachments/assets/bfb6614d-2d90-47df-8218-5a2fbb15207e" />
 
 ---
 
