@@ -4,18 +4,13 @@ Team Intelligence Loop — Agent definitions.
 Root agent:    til_orchestrator
 Sub-agents:    parser_agent, blocker_agent, scheduler_agent, synthesizer_agent
 
-Calendar and Gmail are connected via workspace-mcp (Streamable HTTP MCP server).
-Start the server before running the agent:
-
-    uvx workspace-mcp --tools gmail calendar --transport streamable-http --port 8080
-
-ADK connects via MCPToolset pointing at WORKSPACE_MCP_URL (default: http://localhost:8080/mcp).
+Calendar and Gmail are called directly via Google APIs using OAuth refresh token credentials.
+Required env vars: GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN
 """
 import os
 
 from dotenv import load_dotenv
 from google.adk import Agent
-from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StreamableHTTPConnectionParams
 
 from til_agent.database import (
     get_team_members,
@@ -30,6 +25,11 @@ from til_agent.database import (
     get_recent_decisions,
     get_semantic_similar_blockers,
 )
+from til_agent.google_tools import (
+    check_calendar_availability,
+    create_calendar_event,
+    send_digest_email,
+)
 from til_agent.prompts import (
     ORCHESTRATOR_PROMPT,
     PARSER_PROMPT,
@@ -40,27 +40,7 @@ from til_agent.prompts import (
 
 load_dotenv()
 
-MODEL             = os.getenv("MODEL", "gemini-2.5-flash-lite")
-WORKSPACE_MCP_URL = os.getenv("WORKSPACE_MCP_URL", "http://localhost:8080/mcp")
-
-# ── MCP Toolsets ─────────────────────────────────────────────
-# Two separate instances to avoid shared connection state across agents.
-# Both point at the same workspace-mcp server (which exposes Calendar
-# and Gmail tools when started with --tools gmail calendar).
-
-calendar_mcp = McpToolset(
-    connection_params=StreamableHTTPConnectionParams(
-        url=WORKSPACE_MCP_URL,
-        timeout=30,
-    )
-)
-
-gmail_mcp = McpToolset(
-    connection_params=StreamableHTTPConnectionParams(
-        url=WORKSPACE_MCP_URL,
-        timeout=30,
-    )
-)
+MODEL = os.getenv("MODEL", "gemini-2.5-flash-lite")
 
 # ── Sub-agents ────────────────────────────────────────────────
 
@@ -97,13 +77,14 @@ scheduler_agent = Agent(
     model=MODEL,
     description=(
         "Creates targeted 15-minute 1:1 calendar events for each detected blocker pair "
-        "using Google Calendar via the workspace-mcp MCP server."
+        "using Google Calendar API."
     ),
     instruction=SCHEDULER_PROMPT,
     tools=[
         get_active_blockers,
         update_blocker_status,
-        calendar_mcp,              # Google Calendar MCP tools
+        check_calendar_availability,
+        create_calendar_event,
     ],
 )
 
@@ -112,7 +93,7 @@ synthesizer_agent = Agent(
     model=MODEL,
     description=(
         "Generates the team digest from all standup data, sends it to the team via "
-        "Gmail MCP, and logs notable decisions to the AlloyDB decision journal."
+        "Gmail API, and logs notable decisions to the AlloyDB decision journal."
     ),
     instruction=SYNTHESIZER_PROMPT,
     tools=[
@@ -121,7 +102,7 @@ synthesizer_agent = Agent(
         get_recent_decisions,
         get_team_members,
         store_decision,
-        gmail_mcp,                 # Gmail MCP tools
+        send_digest_email,
     ],
 )
 

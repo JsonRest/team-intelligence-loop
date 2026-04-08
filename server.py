@@ -9,10 +9,12 @@ Serves the dashboard HTML and provides REST endpoints:
   GET  /api/decisions        → recent decisions from AlloyDB
   POST /api/standup          → submit standup → calls ADK agent API
 
-Deploy:
-  gcloud run deploy til-frontend \\
-    --source . --region us-central1 \\
-    --set-env-vars="ADK_API_URL=https://til-agent-XXXX.us-central1.run.app"
+After the ADK pipeline runs, server.py ALSO directly:
+  - stores standup + parsed items via database tools
+  - detects blockers from parsed items and stores them
+  - sends the digest email via google_tools
+
+This guarantees delivery regardless of whether the model calls tools.
 """
 import json
 import os
@@ -34,7 +36,14 @@ from til_agent.database import (
     get_recent_decisions as _decisions,
     get_standups_for_day as _standups,
     get_team_members     as _team,
+    store_standup        as _store_standup,
+    store_parsed_items   as _store_parsed_items,
+    store_blocker        as _store_blocker,
+    get_standups_for_day,
+    get_parsed_items,
+    get_team_members,
 )
+from til_agent.google_tools import send_digest_email
 
 app = FastAPI(title="Team Intelligence Loop Dashboard")
 app.add_middleware(
@@ -93,6 +102,132 @@ async def get_decisions():
         raise HTTPException(500, str(e))
 
 
+# ── Guaranteed post-pipeline steps ────────────────────────────
+
+def _guarantee_blocker_detection(sprint_day: str):
+    """
+    After the agent pipeline runs, directly detect blockers from parsed_items
+    and store any that haven't been stored yet. This guarantees blocker
+    detection regardless of whether the model called store_blocker.
+    """
+    try:
+        items_data = json.loads(get_parsed_items(sprint_day))
+        items = items_data.get("items", [])
+        team_data = json.loads(get_team_members())
+        members = team_data.get("members", [])
+
+        # Build name → email map (lowercase for matching)
+        name_to_email = {m["name"].lower(): m["email"] for m in members}
+        email_to_name = {m["email"]: m["name"] for m in members}
+
+        # Find all blocker items
+        blockers_stored = 0
+        for item in items:
+            if item.get("category") != "blocker":
+                continue
+            blocker_text = item.get("content", "")
+            owner_email = item.get("email", "")
+            if not blocker_text or not owner_email:
+                continue
+
+            # Try to match a team member name in the blocker text
+            blocked_by_email = None
+            for name, email in name_to_email.items():
+                if name in blocker_text.lower() and email != owner_email:
+                    blocked_by_email = email
+                    break
+
+            if blocked_by_email:
+                # Skip if identical blocker already exists today
+                existing = json.loads(_blockers(sprint_day))
+                already_exists = any(
+                    b.get("description", "").lower() == blocker_text.lower()
+                    for b in existing.get("blockers", [])
+                )
+                if already_exists:
+                    continue
+                result = json.loads(_store_blocker(
+                    owner_email, blocked_by_email, blocker_text, sprint_day
+                ))
+                if result.get("blocker_id"):
+                    blockers_stored += 1
+                    print(f"[TIL] Stored blocker: {owner_email} ← {blocked_by_email}", flush=True)
+
+        return blockers_stored
+    except Exception as e:
+        print(f"[TIL] Blocker detection error: {e}", flush=True)
+        return 0
+
+
+def _guarantee_digest_email(sprint_day: str):
+    """
+    After the agent pipeline runs, directly send the digest email.
+    This guarantees email delivery regardless of whether the model
+    called send_digest_email.
+    """
+    try:
+        standups_data = json.loads(get_standups_for_day(sprint_day))
+        standups = standups_data.get("standups", [])
+        if not standups:
+            print(f"[TIL] No standups for {sprint_day}, skipping digest", flush=True)
+            return False
+
+        team_data = json.loads(get_team_members())
+        members = team_data.get("members", [])
+        items_data = json.loads(get_parsed_items(sprint_day))
+        items = items_data.get("items", [])
+        blockers_data = json.loads(_blockers(sprint_day))
+        blockers = blockers_data.get("blockers", [])
+
+        # Build digest text
+        lines = [
+            f"SPRINT DIGEST — {sprint_day}",
+            "Team Intelligence Loop",
+            "=" * 50,
+            "",
+            "TEAM STATUS",
+        ]
+
+        for s in standups:
+            name = s.get("name", s.get("email", "Unknown"))
+            member_items = [i for i in items if i.get("email") == s.get("email")]
+            yesterday = next((i["content"] for i in member_items if i["category"] == "yesterday"), "")
+            today = next((i["content"] for i in member_items if i["category"] == "today"), "")
+            blocker = next((i["content"] for i in member_items if i["category"] == "blocker"), "")
+            lines.append(f"\n{name}")
+            if yesterday:
+                lines.append(f"  ✓ {yesterday}")
+            if today:
+                lines.append(f"  → {today}")
+            if blocker:
+                lines.append(f"  ⚠ BLOCKED: {blocker}")
+
+        lines.append("\nBLOCKERS & RESOLUTIONS")
+        if blockers:
+            for b in blockers:
+                lines.append(f"  ⚠ {b.get('description', '')}")
+        else:
+            lines.append("  ✓ No cross-person blockers today")
+
+        lines.append("\n" + "=" * 50)
+        lines.append("Sent by Team Intelligence Loop · Google ADK + Vertex AI + AlloyDB")
+
+        digest_text = "\n".join(lines)
+        to_emails = ",".join(m["email"] for m in members)
+        subject = f"Sprint Digest {sprint_day} | Team Intelligence Loop"
+
+        result = json.loads(send_digest_email(to_emails, subject, digest_text))
+        if result.get("status") == "sent":
+            print(f"[TIL] Digest sent to {result.get('count')} recipients", flush=True)
+            return True
+        else:
+            print(f"[TIL] Digest send failed: {result}", flush=True)
+            return False
+    except Exception as e:
+        print(f"[TIL] Digest email error: {e}", flush=True)
+        return False
+
+
 # ── Agent interaction ──────────────────────────────────────────
 
 class StandupRequest(BaseModel):
@@ -118,6 +253,7 @@ async def submit_standup(req: StandupRequest):
         + "\n".join(lines)
     )
 
+    adk_result = None
     try:
         async with httpx.AsyncClient(timeout=180.0) as client:
             # 1 — create ADK session
@@ -141,9 +277,44 @@ async def submit_standup(req: StandupRequest):
                 },
             )
             r.raise_for_status()
-            return {"status": "submitted", "session_id": session_id, "result": r.json()}
+            adk_result = r.json()
 
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[TIL] ADK pipeline error: {e}", flush=True)
+        # Continue to guarantee steps even if ADK fails
+
+    # 3 — Guaranteed steps: run regardless of ADK outcome
+    # Only store directly if ADK didn't already store a standup for this member/day
+    try:
+        existing = json.loads(get_standups_for_day(req.sprint_day))
+        already_stored = any(
+            s.get("email") == req.member_email
+            for s in existing.get("standups", [])
+        )
+        if not already_stored:
+            raw_text = "\n".join(lines)
+            store_result = json.loads(_store_standup(req.member_email, req.sprint_day, raw_text))
+            standup_id = store_result.get("standup_id")
+            if standup_id:
+                _store_parsed_items(
+                    standup_id, req.yesterday, req.today,
+                    req.blocker, req.member_email
+                )
+    except Exception as e:
+        print(f"[TIL] Direct store error: {e}", flush=True)
+
+    # 4 — Detect and store blockers
+    blockers_found = _guarantee_blocker_detection(req.sprint_day)
+
+    # 5 — Send digest email
+    email_sent = _guarantee_digest_email(req.sprint_day)
+
+    return {
+        "status": "submitted",
+        "session_id": session_id,
+        "result": adk_result,
+        "guaranteed": {
+            "blockers_stored": blockers_found,
+            "email_sent": email_sent,
+        }
+    }

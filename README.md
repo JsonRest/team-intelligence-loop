@@ -307,7 +307,7 @@ team-intelligence-loop/
 | Issue | Fix |
 |---|---|
 | `--database-flags` rejected on cluster create | Move flag to `gcloud alloydb instances create` instead |
-| `Driver 'psycopg2' is not supported` | alloydb-connector 1.12.1+ requires pg8000 — use `[pg8000]` extra |
+| `Driver 'psycopg2' is not supported` | alloydb-connector 1.12.1+ requires pg8000 — use `[pg8000]` extra in both `til_agent/requirements.txt` AND `requirements-frontend.txt` |
 | `Type uuid.UUID not serialisable` | pg8000 returns UUID objects — add `uuid.UUID` to `_serialize()` in database.py |
 | `No root_agent found for 'til_orchestrator'` | Agent folder is `til_agent` — update `server.py` app_name references |
 | `MCPToolset is deprecated` | Use `McpToolset` (new capitalization) from same import path |
@@ -318,7 +318,7 @@ team-intelligence-loop/
 | ADK session required before `/run` | `server.py` handles session creation automatically |
 | til-frontend can't import til_agent | `__init__.py` uses lazy import — ADK not required in frontend container |
 | `ValueError: a coroutine was expected, got None` on Cloud Run startup | `google-workspace-mcp 2.0.1` has a breaking change — pin to `==1.17.3` in Dockerfile |
-| `Permission denied on secret` during Cloud Run deploy | Grant Secret Accessor role: `gcloud secrets add-iam-policy-binding workspace-mcp-refresh-token --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"` |
+| Digest dashboard shows no standup data | `toISOString()` returns UTC — use local date instead: `const _d=new Date(); const today=\`${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}\`` in `frontend/index.html` |
 | Cold start delays during eval | Deploy all services with `--min-instances=1` |
 | workspace-mcp OAuth 2.1 + single-user conflict | Use only `--single-user` flag locally, no `MCP_ENABLE_OAUTH21` |
 
