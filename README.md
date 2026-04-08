@@ -5,9 +5,9 @@ A multi-agent AI system that replaces the daily standup meeting with a 3-minute 
 **Stack:** Google ADK · Vertex AI (Gemini 2.5 Flash Lite) · workspace-mcp (Calendar + Gmail) · AlloyDB + pgvector · FastAPI · Cloud Run  
 **GCP Project:** `genaiacademy-491713`
 
-<img width="274" height="317" alt="image" src="https://github.com/user-attachments/assets/a6afa56a-f740-48e9-9040-fd6e676ee0d3" />
+<img width="1721" height="895" alt="image" src="https://github.com/user-attachments/assets/d6321939-7efe-4202-9f0f-0f007843ff35" />
 <img width="205" height="317" alt="image" src="https://github.com/user-attachments/assets/f7639830-6879-422f-8aa0-f320b48f6d50" />
-<img width="205" height="317" alt="image" src="https://github.com/user-attachments/assets/d0bd1489-11a6-4925-9a56-c6176f0435a1" />
+<img width="230" height="317" alt="image" src="https://github.com/user-attachments/assets/bfb6614d-2d90-47df-8218-5a2fbb15207e" />
 
 ---
 
